@@ -7,3 +7,32 @@ aside,.editor{border:1px solid var(--line);border-radius:13px;background:var(--p
 #library{display:grid;gap:5px;max-height:220px;overflow:auto}#library:empty{display:none}.entry{display:grid;justify-content:stretch;text-align:left;gap:4px;width:100%;min-width:0;background:#202732;border-color:#36414e}.entry b{text-overflow:ellipsis;overflow:hidden}.entry[aria-pressed=true]{border-color:#50948f}
 #drop{margin:auto 0 0;background:#17262a;border-color:#365c61;border-radius:9px;padding:20px 8px}#drop strong{font-size:14px}.upload-icon{background:#204246}.transport{background:#151a20}.transport output{font-family:ui-monospace,monospace;font-size:clamp(18px,2vw,27px);letter-spacing:-.05em}.tools button{background:#242b33;border-color:#37424e}.tools #snap[aria-pressed=true]{border-color:#397570}.workspace{background:#11171c;grid-template-columns:75px minmax(0,1fr)}.track,#ruler{background:#202831}.track{padding-left:10px}#timeline{height:218px}#clips{inset:52px 0 25px}.clip.selected{background:#234448;border-color:#6ae6db}.clip{background:#27373e}.gridline{border-color:#2c3741}#empty{position:absolute;inset:48px 0 15px;display:grid;align-content:center;justify-content:center;gap:6px;color:var(--muted);text-align:center;pointer-events:none}#empty strong{color:#d8e5eb}#empty span{font-size:12px}#empty[hidden]{display:none}.editor{min-width:0}.footer{background:#1c232b}.bar{gap:8px}
 @media(max-width:850px){.desk{grid-template-columns:1fr}aside{display:grid;grid-template-columns:1fr 1fr;align-items:center}#drop{grid-column:2;grid-row:1/3;padding:10px}.upload-icon,#drop span{display:none}#library{max-height:100px}#timeline{height:175px}}
+
+/* Compact editing workspace */
+body{background:#13151a;color:#e7ebf0}
+header{height:54px;padding:0 18px;background:#181b21;border-color:#30343d}
+.brand{font-size:18px}.brand img{width:27px;height:27px}
+main{max-width:none;padding:0 12px 12px}
+.topbar,.topbar .tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.topbar{margin:0 -12px 12px;padding:6px 12px;background:#21242a;border-bottom:1px solid #3a3d46}
+.topbar #drop{display:block;background:none;padding:0 8px 0 0;margin:0;border:none;border-right:1px solid #444852;border-radius:0}
+.topbar #import{margin:0}.topbar .tools{flex:1;padding:0;border:0;justify-content:space-between}
+button,.button{min-height:30px;padding:5px 9px}
+.topbar button{background:#292d35;border-color:#393e49;border-radius:5px}
+.editor{border:1px solid #353943;background:#1c2027;border-radius:7px;overflow:visible}
+.console-title{padding:9px 14px;background:#20242c}
+.console-title h1{font:650 14px/1.3 system-ui;letter-spacing:0}
+.workspace{grid-template-columns:clamp(72px,11vw,150px) minmax(0,1fr);background:#191c22}
+#timeline{height:clamp(240px,50vh,530px);background:linear-gradient(to bottom,transparent 0 49%,#2b303a 49% 76%,transparent 76%)}
+#clips{inset:49% 0 24%}
+.track{padding:0 12px;justify-content:center;background:linear-gradient(to bottom,#20232a 0 49%,#303640 49% 76%,#20232a 76%);position:relative}
+.track strong{transform:translateY(12px)}.track span{transform:translateY(12px)}
+#ruler{background:#262a32;height:30px}.gridline{border-color:#ffffff0a}
+.clip,.clip.selected{border-radius:4px;background:#153c58;border-color:#4c9bc4}.clip.selected{box-shadow:inset 0 0 0 1px #a4e3ff}.edge{background:#86cfff38}
+#empty{inset:49% 0 24%}#empty strong{font-size:14px}
+#cursor{background:#ecf6ff}#cursor:before{border-top-color:#ecf6ff}
+.transport{background:#232730}.transport output{font-size:20px}.footer{background:#1c2027}
+details{position:relative}summary{cursor:pointer;color:#cbd7e4}
+#library{position:absolute;bottom:24px;left:0;min-width:200px;background:#20242b;z-index:4;max-height:180px;overflow:auto}
+#status{margin-left:4px}button:focus-visible,summary:focus-visible{outline:2px solid #85e9dd;outline-offset:2px}
+@media(max-width:620px){main{padding:0 4px 8px}.topbar{margin:0 -4px 6px;padding:5px}.topbar .tools{display:contents}.tools .group{gap:4px}.tools button{font-size:12px}.workspace{grid-template-columns:60px minmax(0,1fr)}.track{padding:0 5px}.transport{padding:8px}.console-title{padding:6px 9px}}

@@ -57,7 +57,7 @@ function paintWave(canvas, clip) {
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
   const start = Math.round(clip.from * buffer.sampleRate);
   const samples = (clip.to - clip.from) * buffer.sampleRate;
-  ctx.fillStyle = '#80ebe0';
+  ctx.fillStyle = '#73d9ff';
   for (let x = 0; x < width; x += 2) {
     const first = Math.floor(start + samples * x / width);
     const last = Math.min(buffer.length, Math.ceil(start + samples * (x + 2) / width));
