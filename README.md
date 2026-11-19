@@ -16,7 +16,7 @@ Abre el editor desde el botón de GitHub Pages.
 - Selecciona el audio importado de un video y pulsa **Ver video** para abrir el original. Los formatos y códecs que se pueden importar y previsualizar dependen del navegador. Los archivos de video sin pista de audio no se importan.
 - Pulsa **Exportar WAV** para unir la pista completa en un archivo WAV PCM de 16 bits. La mezcla incluye los huecos que se hayan dejado en la línea de tiempo.
 
-**Espacio** reproduce o pausa. **Ctrl+Z** o **Cmd+Z** deshace una edición. **Supr** elimina el clip seleccionado. Prueba la herramienta con el ejemplo incluido.
+**Espacio** reproduce o pausa. **Ctrl+Z** o **Cmd+Z** deshace una edición. **Supr** elimina el clip seleccionado.
 
 ## Abrir localmente
 

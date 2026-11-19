@@ -91,9 +91,15 @@ function render() {
     const preview = document.createElement('canvas');
     preview.width = 144;
     entry.append(preview, name, times);
+    entry.draggable = true;
+    entry.ondragstart = (event) => {
+      event.dataTransfer.setData('application/x-audio-studio-clip', String(clip.id));
+      event.dataTransfer.effectAllowed = 'move';
+      $('remove').disabled = false;
+    };
     entry.onclick = () => {
-      seek(clip.at);
       selected = clip.id;
+      viewport.focus({preventScroll:true});
       viewport.scrollLeft = Math.max(0, clip.at * scale - 30);
       render();
     };
@@ -103,6 +109,7 @@ function render() {
   $('libraryEmpty').hidden = $('library').childElementCount > 0;
   $('libraryEmpty').textContent = clips.length ? 'Sin coincidencias.' : 'Arrastra archivos de audio o video aquí.';
   for (const entry of $('library').children) paintWave(entry.querySelector('canvas'), clips.find(c => c.id === Number(entry.dataset.id)));
+  $('zoom').value = 1000 * Math.log(scale / minScale()) / Math.log(1000 / minScale());
   const width = Math.max(viewport.clientWidth, Math.ceil((Math.max(total, cursor) + 2) * scale));
   timeline.style.width = width + 'px';
   const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600].find((value) => value * scale >= 68 && width / (value * scale) < 500) || 1800;
@@ -243,11 +250,31 @@ function split() {
   render();
   report('Clip dividido en el cabezal.');
 }
-function remove() {
+function overTrash(event) {
+  const rect = $('remove').getBoundingClientRect();
+  return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+}
+const clipType = 'application/x-audio-studio-clip';
+$('remove').ondragover = (event) => {
+  if (event.dataTransfer.types.includes(clipType)) {
+    event.preventDefault();
+    $('remove').classList.add('drop-active');
+  }
+};
+$('remove').ondragleave = () => $('remove').classList.remove('drop-active');
+$('remove').ondrop = (event) => {
+  const id = Number(event.dataTransfer.getData(clipType));
+  if (!clips.some(clip => clip.id === id)) return;
+  event.preventDefault();
+  selected = id;
+  $('remove').classList.remove('drop-active');
+  remove();
+};
+function remove(record = true) {
   const clip = getSelected();
   if (!clip) return;
   stop();
-  save();
+  if (record) save();
   clips = clips.filter((item) => item !== clip);
   if (snap) {
     for (const item of clips) if (item.at >= end(clip) - 1e-8) item.at -= clip.to - clip.from;
@@ -323,25 +350,30 @@ timeline.addEventListener('pointerdown', (event) => {
     seek(position(event));
     return;
   }
-  stop();
+  event.preventDefault();
+  viewport.focus({preventScroll:true});
   selected = Number(box.dataset.id);
   const clip = getSelected();
   const others = clips.filter((item) => item !== clip);
   const before = others.filter((item) => item.at < clip.at);
   const after = others.find((item) => item.at > clip.at);
   const previous = before[before.length - 1];
-  drag = { clip, others, previous, after, initial: { ...clip }, x: event.clientX, mode: event.target.dataset.edge, id: event.pointerId };
+  drag = { clip, others, previous, after, initial: { ...clip }, x: event.clientX, y: event.clientY, mode: event.target.dataset.edge, id: event.pointerId };
   timeline.setPointerCapture(event.pointerId);
   render();
 });
 timeline.addEventListener('pointermove', (event) => {
   if (drag?.id !== event.pointerId) return;
   const delta = (event.clientX - drag.x) / scale;
-  if (!drag.moved && Math.abs(event.clientX - drag.x) < 3) return;
+  if (!drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 4) return;
+  const inTrash = !drag.mode && overTrash(event);
+  $('remove').classList.toggle('drop-active', inTrash);
   if (!drag.moved) {
+    stop();
     save();
     drag.moved = true;
   }
+  if (inTrash) return;
   const { clip, initial, others, previous, after, mode } = drag;
   if (mode === 'left') {
     const earliest = Math.max(0, initial.from + (previous ? end(previous) : 0) - initial.at);
@@ -362,10 +394,15 @@ timeline.addEventListener('pointermove', (event) => {
 });
 timeline.addEventListener('pointerup', (event) => {
   if (drag?.id !== event.pointerId) return;
-  if (!drag.moved && !drag.mode) seek(position(event));
+  if (drag.moved && !drag.mode && overTrash(event)) {
+    Object.assign(drag.clip, drag.initial);
+    sort();
+    remove(false);
+  }
+  $('remove').classList.remove('drop-active');
   drag = undefined;
 });
-timeline.addEventListener('pointercancel', () => { drag = undefined; });
+timeline.addEventListener('pointercancel', () => { $('remove').classList.remove('drop-active'); drag = undefined; });
 function audibleIntervals(clip, threshold, minimum) {
   const buffer = clip.asset.buffer;
   const rate = buffer.sampleRate;
@@ -495,25 +532,22 @@ $('export').onclick = async () => {
     $('export').disabled = !clips.length;
   }
 };
-$('demo').onclick = () => {
-  const rate = 22050;
-  const buffer = context().createBuffer(1, rate * 7, rate);
-  const data = buffer.getChannelData(0);
-  for (const [start, finish, frequency] of [[0.65, 1.4, 220], [2.05, 3.25, 277], [4.2, 5.6, 330]]) {
-    for (let i = Math.round(start * rate); i < Math.round(finish * rate); i++) {
-      const t = i / rate;
-      const envelope = Math.min(1, (t - start) * 22, (finish - t) * 22);
-      data[i] = envelope * (Math.sin(t * 2 * Math.PI * frequency) * 0.35 + Math.sin(t * 14) * Math.sin(t * 2 * Math.PI * frequency * 2) * 0.11);
-    }
-  }
-  addAssets([{ name: 'Ejemplo con silencios', buffer }], cursor);
-  report('Ejemplo listo. Prueba el botón Quitar silencios.');
-};
-$('zoom').oninput = (event) => {
-  const offset = cursor * scale - viewport.scrollLeft;
-  scale = Number(event.target.value);
+function minScale() {
+  return Math.min(0.1, Math.max(1, viewport.clientWidth - 5) / (duration() + 2));
+}
+function changeScale(next) {
+  const anchor = Math.min(viewport.clientWidth, Math.max(0, cursor * scale - viewport.scrollLeft));
+  scale = Math.max(minScale(), Math.min(1000, next));
   render();
-  viewport.scrollLeft = Math.max(0, cursor * scale - offset);
+  viewport.scrollLeft = Math.max(0, cursor * scale - anchor);
+}
+$('zoom').oninput = () => {
+  const min = minScale();
+  changeScale(min * (1000 / min) ** ($('zoom').valueAsNumber / 1000));
+};
+$('fit').onclick = () => {
+  changeScale((viewport.clientWidth - 5) / (duration() + 2));
+  viewport.scrollLeft = 0;
 };
 $('snap').onclick = () => {
   snap = !snap;
@@ -526,12 +560,12 @@ $('split').onclick = split;
 $('remove').onclick = remove;
 $('undo').onclick = restore;
 window.addEventListener('keydown', (event) => {
-  if (document.querySelector('dialog[open]') || event.target.matches('input,textarea,[contenteditable]')) return;
+  if (document.querySelector('dialog[open]') || event.target.matches('textarea,input:not([type=range]),[contenteditable=true]')) return;
   const command = event.ctrlKey || event.metaKey;
   if (command && event.key.toLowerCase() === 'b') { event.preventDefault(); split(); }
   else if (command && event.key.toLowerCase() === 'z') { event.preventDefault(); restore(); }
   else if (event.code === 'Space' && !event.target.closest('button,a')) { event.preventDefault(); play(); }
-  else if (event.key === 'Delete') remove();
+  else if (['Delete', 'Backspace'].includes(event.key) && getSelected()) { event.preventDefault(); remove(); }
 });
 for (const key of ['gainDb', 'fadeIn', 'fadeOut']) {
   $(key).oninput = () => {
