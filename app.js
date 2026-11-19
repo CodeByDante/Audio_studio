@@ -57,7 +57,7 @@ function paintWave(canvas, clip) {
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
   const start = Math.round(clip.from * buffer.sampleRate);
   const samples = (clip.to - clip.from) * buffer.sampleRate;
-  ctx.fillStyle = '#a5ed9b';
+  ctx.fillStyle = '#80ebe0';
   for (let x = 0; x < width; x += 2) {
     const first = Math.floor(start + samples * x / width);
     const last = Math.min(buffer.length, Math.ceil(start + samples * (x + 2) / width));
@@ -73,6 +73,27 @@ function paintWave(canvas, clip) {
 }
 function render() {
   const total = duration();
+  $('empty').hidden = clips.length > 0;
+  $('count').textContent = clips.length === 1 ? '1 clip' : clips.length + ' clips';
+  const list = document.createDocumentFragment();
+  for (const clip of clips) {
+    const entry = document.createElement('button');
+    entry.className = 'entry';
+    entry.setAttribute('aria-pressed', String(clip.id === selected));
+    const name = document.createElement('b');
+    name.textContent = clip.asset.name;
+    const times = document.createElement('small');
+    times.textContent = time(clip.at) + ' → ' + time(end(clip));
+    entry.append(name, times);
+    entry.onclick = () => {
+      seek(clip.at);
+      selected = clip.id;
+      viewport.scrollLeft = Math.max(0, clip.at * scale - 30);
+      render();
+    };
+    list.append(entry);
+  }
+  $('library').replaceChildren(list);
   const width = Math.max(viewport.clientWidth, Math.ceil((Math.max(total, cursor) + 2) * scale));
   timeline.style.width = width + 'px';
   const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600].find((value) => value * scale >= 68 && width / (value * scale) < 500) || 1800;
