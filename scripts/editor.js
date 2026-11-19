@@ -53,48 +53,47 @@ function nearestSlot(at, length, others) {
   }
   return best;
 }
-function paintWave(canvas, clip) {
-  const width = canvas.width = Math.max(1, Math.min(2400, canvas.clientWidth));
-  const height = canvas.height = 70;
-  const ctx = canvas.getContext('2d');
-  const buffer = clip.asset.buffer;
-  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
-  const start = Math.round(clip.from * buffer.sampleRate);
-  const samples = (clip.to - clip.from) * buffer.sampleRate;
-  ctx.fillStyle = '#73d9ff';
-  for (let x = 0; x < width; x += 2) {
-    const first = Math.floor(start + samples * x / width);
-    const last = Math.min(buffer.length, Math.ceil(start + samples * (x + 2) / width));
-    let peak = 0;
-    for (const channel of channels) {
-      for (let i = first; i < last; i += Math.max(1, Math.floor((last - first) / 32))) {
-        peak = Math.max(peak, Math.abs(channel[i]));
-      }
-    }
-    const amplitude = Math.max(1, peak * height * 0.9);
-    ctx.fillRect(x, (height - amplitude) / 2, 1, amplitude);
+function drawRuler() {
+  const width = viewport.clientWidth;
+  const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600].find((value) => value * scale >= 68 && width / (value * scale) < 500) || 1800;
+  const ruler = document.createDocumentFragment();
+  for (let sec = Math.max(0, Math.floor(viewport.scrollLeft / (scale * step)) * step); sec * scale < viewport.scrollLeft + width; sec += step) {
+    const tick = document.createElement('span');
+    const line = document.createElement('span');
+    tick.className = 'tick';
+    line.className = 'gridline';
+    tick.style.left = line.style.left = (sec * scale) + 'px';
+    tick.textContent = time(sec).slice(0, step < 1 ? 8 : 5);
+    ruler.append(tick, line);
   }
+  $('ruler').replaceChildren(ruler);
+  $('ruler').style.backgroundSize = (step * scale / 5) + 'px 5px';
 }
+viewport.addEventListener('scroll', drawRuler, {passive:true});
 let mediaKind = 'all';
+const mediaTiles = new Map();
 function render() {
   const total = duration();
   $('empty').hidden = clips.length > 0;
+  $('libraryImport').hidden = clips.length > 0;
   $('count').textContent = clips.length === 1 ? '1 clip' : clips.length + ' clips';
   const list = document.createDocumentFragment();
   for (const clip of clips) {
-    const entry = document.createElement('button');
+    if ($('panels').hidden) break;
     const kind = clip.asset.video ? 'video' : 'audio';
     if ((mediaKind !== 'all' && kind !== mediaKind) || !clip.asset.name.toLowerCase().includes($('search').value.toLowerCase())) continue;
-    entry.className = 'entry';
-    entry.dataset.id = clip.id;
+    let entry = mediaTiles.get(clip.id);
+    if (!entry) {
+      entry = document.createElement('button');
+      entry.className = 'entry';
+      entry.dataset.id = clip.id;
+      const name = document.createElement('b');
+      name.textContent = clip.asset.name;
+      entry.append(document.createElement('canvas'), name, document.createElement('small'));
+      mediaTiles.set(clip.id, entry);
+    }
     entry.setAttribute('aria-pressed', String(clip.id === selected));
-    const name = document.createElement('b');
-    name.textContent = clip.asset.name;
-    const times = document.createElement('small');
-    times.textContent = time(clip.at) + ' → ' + time(end(clip));
-    const preview = document.createElement('canvas');
-    preview.width = 144;
-    entry.append(preview, name, times);
+    entry.querySelector('small').textContent = time(clip.at) + ' → ' + time(end(clip));
     entry.draggable = true;
     entry.ondragstart = (event) => {
       event.dataTransfer.setData('application/x-audio-studio-clip', String(clip.id));
@@ -112,22 +111,22 @@ function render() {
   $('library').replaceChildren(list);
   $('libraryEmpty').hidden = $('library').childElementCount > 0;
   $('libraryEmpty').textContent = clips.length ? 'Sin coincidencias.' : 'Arrastra archivos de audio o video aquí.';
-  for (const entry of $('library').children) paintWave(entry.querySelector('canvas'), clips.find(c => c.id === Number(entry.dataset.id)));
+  const liveIds = new Set(clips.map(clip => clip.id));
+  for (const id of mediaTiles.keys()) if (!liveIds.has(id)) mediaTiles.delete(id);
+  if (!$('panels').hidden) for (const clip of clips) {
+    const entry = mediaTiles.get(clip.id);
+    if (!entry?.isConnected) continue;
+    const canvas = entry.querySelector('canvas');
+    const key = [clip.from, clip.to, canvas.clientWidth, canvas.clientHeight].join('/');
+    if (entry.dataset.wave !== key) {
+      paintWave(canvas, clip);
+      entry.dataset.wave = key;
+    }
+  }
   $('zoom').value = 1000 * Math.log(scale / minScale()) / Math.log(1000 / minScale());
   const width = Math.max(viewport.clientWidth, Math.ceil((Math.max(total, cursor) + 2) * scale));
   timeline.style.width = width + 'px';
-  const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600].find((value) => value * scale >= 68 && width / (value * scale) < 500) || 1800;
-  const ruler = document.createDocumentFragment();
-  for (let sec = 0; sec * scale < width; sec += step) {
-    const tick = document.createElement('span');
-    const line = document.createElement('span');
-    tick.className = 'tick';
-    line.className = 'gridline';
-    tick.style.left = line.style.left = (sec * scale) + 'px';
-    tick.textContent = time(sec).slice(0, step < 1 ? 8 : 5);
-    ruler.append(tick, line);
-  }
-  $('ruler').replaceChildren(ruler);
+  drawRuler();
   editor.replaceChildren();
   for (const clip of clips) {
     const box = document.createElement('div');
@@ -150,6 +149,7 @@ function render() {
     paintWave(wave, clip);
   }
   const active = getSelected();
+  $('audioTrackName').textContent = active?.asset.name || 'Audio 1';
   $('mixName').textContent = active?.asset.name || 'Selecciona un clip en la pista.';
   for (const key of ['gainDb', 'fadeIn', 'fadeOut']) {
     $(key).disabled = !active;
@@ -181,36 +181,9 @@ function stop() {
     for (const source of playback.sources) source.stop();
     playback = undefined;
   }
-  $('play').textContent = '▶';
+  $('play').dataset.playing = 'false';
   $('play').setAttribute('aria-label', 'Reproducir');
   renderCursor();
-}
-function schedule(context, sourceClips, from, start, smooth = true) {
-  const sources = [];
-  for (const clip of sourceClips) {
-    const skip = Math.max(0, from - clip.at);
-    const length = clip.to - clip.from - skip;
-    if (length <= 0) continue;
-    const when = start + Math.max(0, clip.at - from);
-    const source = context.createBufferSource();
-    source.buffer = clip.asset.buffer;
-    if (smooth) {
-      const gain = context.createGain();
-      const full = clip.to - clip.from;
-      const level = 10 ** ((clip.gainDb || 0) / 20);
-      const attack = Math.min(Math.max(0.004, clip.fadeIn || 0), full / 2);
-      const release = Math.min(Math.max(0.004, clip.fadeOut || 0), full / 2);
-      const initial = level * Math.min(1, skip / attack, length / release);
-      gain.gain.setValueAtTime(initial, when);
-      if (skip < attack) gain.gain.linearRampToValueAtTime(level, when + attack - skip);
-      if (length > release) gain.gain.setValueAtTime(level, when + length - release);
-      gain.gain.linearRampToValueAtTime(0, when + length);
-      source.connect(gain).connect(context.destination);
-    } else source.connect(context.destination);
-    source.start(when, clip.from + skip, length);
-    sources.push(source);
-  }
-  return sources;
 }
 function context() {
   return audio ??= new AudioContext();
@@ -226,7 +199,7 @@ async function play() {
     const start = audio.currentTime + 0.035;
     const current = { start, from: cursor, end: finish, sources: schedule(audio, clips, cursor, start) };
     playback = current;
-    $('play').textContent = 'Ⅱ';
+    $('play').dataset.playing = 'true';
     $('play').setAttribute('aria-label', 'Pausar');
     const frame = () => {
       if (playback !== current) return;
@@ -289,6 +262,7 @@ function remove(record = true) {
   render();
 }
 function addAssets(assets, at) {
+  const firstImport = clips.length === 0;
   stop();
   save();
   for (const asset of assets) {
@@ -300,6 +274,7 @@ function addAssets(assets, at) {
     at = end(clip);
     selected = clip.id;
   }
+  if (firstImport) scale = Math.max(minScale(), Math.min(1000, (viewport.clientWidth - 10) / (duration() + 0.5)));
   render();
   const active = getSelected();
   if (active.at * scale >= viewport.scrollLeft + viewport.clientWidth) viewport.scrollLeft = active.at * scale - 25;
@@ -324,6 +299,7 @@ function loadFiles(files, at) {
     report(assets.length + ' archivo(s) importado(s).' + (failed.length ? ' Audio no disponible o códec incompatible: ' + failed.join(', ') + '.' : ''));
   });
 }
+$('libraryImport').onclick = () => $('files').click();
 $('import').onclick = () => $('files').click();
 $('files').onchange = (event) => {
   loadFiles([...event.target.files], cursor);
@@ -353,6 +329,7 @@ timeline.addEventListener('pointerdown', (event) => {
   if (event.button !== 0) return;
   const box = event.target.closest('.clip');
   if (!box) {
+    if (event.target.closest('button')) return;
     seek(position(event));
     return;
   }
@@ -396,8 +373,16 @@ timeline.addEventListener('pointermove', (event) => {
     clip.at = nearestSlot(snap && Math.abs(closest - target) * scale < 14 ? closest : target, length, others);
   }
   sort();
-  render();
+  queueRender();
 });
+let renderFrame;
+function queueRender() {
+  if (renderFrame) return;
+  renderFrame = requestAnimationFrame(() => {
+    renderFrame = undefined;
+    render();
+  });
+}
 timeline.addEventListener('pointerup', (event) => {
   if (drag?.id !== event.pointerId) return;
   if (drag.moved && !drag.mode && overTrash(event)) {
@@ -409,36 +394,6 @@ timeline.addEventListener('pointerup', (event) => {
   drag = undefined;
 });
 timeline.addEventListener('pointercancel', () => { $('remove').classList.remove('drop-active'); drag = undefined; });
-function audibleIntervals(clip, threshold, minimum) {
-  const buffer = clip.asset.buffer;
-  const rate = buffer.sampleRate;
-  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
-  const start = Math.round(clip.from * rate);
-  const finish = Math.round(clip.to * rate);
-  const step = Math.max(1, Math.round(rate * 0.01));
-  const limit = 10 ** (threshold / 10);
-  const intervals = [];
-  let lastSound = start, segmentStart = start, hasSound = false;
-  for (let frame = start; frame < finish; frame += step) {
-    const next = Math.min(finish, frame + step);
-    const loud = channels.some((channel) => {
-      let power = 0;
-      for (let i = frame; i < next; i++) power += channel[i] ** 2;
-      return power / (next - frame) >= limit;
-    });
-    if (!loud) continue;
-    if (frame - lastSound >= minimum * rate) {
-      if (hasSound) intervals.push([segmentStart, lastSound]);
-      segmentStart = frame;
-    }
-    hasSound = true;
-    lastSound = next;
-  }
-  if (!hasSound) return [];
-  intervals.push([segmentStart, finish - lastSound < minimum * rate ? finish : lastSound]);
-  return intervals.map(([from, to]) => [Math.max(clip.from, from / rate - 0.025), Math.min(clip.to, to / rate + 0.025)])
-    .filter(([from, to]) => to - from >= minimumClip);
-}
 $('silence').onclick = () => {
   stop();
   $('silenceDialog').returnValue = 'cancel';
@@ -448,7 +403,7 @@ $('silenceDialog').onclose = () => {
   if ($('silenceDialog').returnValue !== 'apply') return;
   const clip = getSelected();
   if (!clip) return;
-  const intervals = audibleIntervals(clip, $('threshold').valueAsNumber, $('minimum').valueAsNumber / 1000);
+  const intervals = audibleIntervals(clip, $('threshold').valueAsNumber, $('minimum').valueAsNumber / 1000, minimumClip);
   const removed = clip.to - clip.from - intervals.reduce((sum, [from, to]) => sum + to - from, 0);
   if (removed < 0.001) return report('No se encontraron silencios con estos ajustes.');
   save();
@@ -484,35 +439,6 @@ $('videoDialog').onclose = () => {
   video.removeAttribute('src');
   video.load();
 };
-function wav(buffer) {
-  const count = buffer.numberOfChannels;
-  const bytes = buffer.length * count * 2;
-  const view = new DataView(new ArrayBuffer(44 + bytes));
-  const tag = (offset, label) => [...label].forEach((letter, index) => view.setUint8(offset + index, letter.charCodeAt(0)));
-  tag(0, 'RIFF');
-  view.setUint32(4, 36 + bytes, true);
-  tag(8, 'WAVE');
-  tag(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, count, true);
-  view.setUint32(24, buffer.sampleRate, true);
-  view.setUint32(28, buffer.sampleRate * count * 2, true);
-  view.setUint16(32, count * 2, true);
-  view.setUint16(34, 16, true);
-  tag(36, 'data');
-  view.setUint32(40, bytes, true);
-  const channels = Array.from({ length: count }, (_, index) => buffer.getChannelData(index));
-  let offset = 44;
-  for (let i = 0; i < buffer.length; i++) {
-    for (const channel of channels) {
-      const sample = Math.max(-1, Math.min(1, channel[i]));
-      view.setInt16(offset, sample * (sample < 0 ? 32768 : 32767), true);
-      offset += 2;
-    }
-  }
-  return new Blob([view.buffer], { type: 'audio/wav' });
-}
 let exporting = false;
 $('export').onclick = async () => {
   if (!clips.length || exporting) return;
@@ -600,6 +526,7 @@ $('panelToggle').onclick = () => {
   $('panels').hidden = !$('panels').hidden;
   document.body.classList.toggle('panels-open', !$('panels').hidden);
   $('panelToggle').setAttribute('aria-expanded', String(!$('panels').hidden));
+  render();
 };
 $('redo').onclick = () => {
   if (!redoStack.length) return;

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./logo.svg" alt="Logo de Audio Studio" width="80">
+  <img src="./assets/logo.svg" alt="Logo de Audio Studio" width="80">
   <h1>Audio Studio</h1>
   <p>Editor de audio en el navegador, con línea de tiempo y exportación WAV.</p>
   <a href="https://codebydante.github.io/Audio_studio/"><img alt="Abrir Audio Studio en GitHub Pages" src="https://img.shields.io/badge/Abrir%20Audio%20Studio-GitHub%20Pages-bcfc78?style=for-the-badge"></a>
@@ -22,3 +22,14 @@ Abre el editor desde el botón de GitHub Pages.
 
 Descomprime el proyecto y abre `index.html` en un navegador actual. Los archivos multimedia se procesan localmente.
 
+
+## Organización
+
+- `index.html` define los paneles y controles del editor.
+- `styles/editor.css` contiene el diseño adaptable a la ventana.
+- `scripts/editor.js` coordina la importación, la selección, la línea de tiempo y las acciones de edición.
+- `scripts/audio/engine.js` planifica la reproducción, detecta silencios y codifica el WAV.
+- `scripts/audio/waveform.js` dibuja las ondas y reutiliza su envolvente para vistas alejadas.
+- `assets/` contiene la identidad gráfica.
+
+El sitio se publica directamente desde la raíz de la rama `main`. No necesita instalación de dependencias.
