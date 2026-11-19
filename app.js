@@ -71,6 +71,7 @@ function paintWave(canvas, clip) {
     ctx.fillRect(x, (height - amplitude) / 2, 1, amplitude);
   }
 }
+let mediaKind = 'all';
 function render() {
   const total = duration();
   $('empty').hidden = clips.length > 0;
@@ -78,13 +79,18 @@ function render() {
   const list = document.createDocumentFragment();
   for (const clip of clips) {
     const entry = document.createElement('button');
+    const kind = clip.asset.video ? 'video' : 'audio';
+    if ((mediaKind !== 'all' && kind !== mediaKind) || !clip.asset.name.toLowerCase().includes($('search').value.toLowerCase())) continue;
     entry.className = 'entry';
+    entry.dataset.id = clip.id;
     entry.setAttribute('aria-pressed', String(clip.id === selected));
     const name = document.createElement('b');
     name.textContent = clip.asset.name;
     const times = document.createElement('small');
     times.textContent = time(clip.at) + ' → ' + time(end(clip));
-    entry.append(name, times);
+    const preview = document.createElement('canvas');
+    preview.width = 144;
+    entry.append(preview, name, times);
     entry.onclick = () => {
       seek(clip.at);
       selected = clip.id;
@@ -94,6 +100,9 @@ function render() {
     list.append(entry);
   }
   $('library').replaceChildren(list);
+  $('libraryEmpty').hidden = $('library').childElementCount > 0;
+  $('libraryEmpty').textContent = clips.length ? 'Sin coincidencias.' : 'Arrastra archivos de audio o video aquí.';
+  for (const entry of $('library').children) paintWave(entry.querySelector('canvas'), clips.find(c => c.id === Number(entry.dataset.id)));
   const width = Math.max(viewport.clientWidth, Math.ceil((Math.max(total, cursor) + 2) * scale));
   timeline.style.width = width + 'px';
   const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600].find((value) => value * scale >= 68 && width / (value * scale) < 500) || 1800;
@@ -534,6 +543,16 @@ for (const key of ['gainDb', 'fadeIn', 'fadeOut']) {
     stop();
     save();
     clip[key] = $(key).valueAsNumber;
+    render();
+  };
+}
+$('add').onclick = () => $('files').click();
+$('search').oninput = render;
+for (const tab of document.querySelectorAll('[data-kind]')) {
+  tab.onclick = () => {
+    mediaKind = tab.dataset.kind;
+    $('collectionName').textContent = {all:'Todos',audio:'Audio',video:'Video'}[mediaKind];
+    for (const other of document.querySelectorAll('[data-kind]')) other.setAttribute('aria-pressed', String(other.dataset.kind === mediaKind));
     render();
   };
 }
