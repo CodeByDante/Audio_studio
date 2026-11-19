@@ -5,7 +5,7 @@ const viewport = $('viewport');
 const editor = $('clips');
 const minimumClip = 0.018;
 let clips = [], history = [], selected, drag, audio, playback;
-let cursor = 0, scale = 88, snap = true, serial = 0;
+let cursor = 0, scale = 7.8, snap = true, serial = 0;
 let importQueue = Promise.resolve();
 const end = (clip) => clip.at + clip.to - clip.from;
 const duration = () => clips.reduce((max, clip) => Math.max(max, end(clip)), 0);
@@ -17,13 +17,17 @@ const time = (seconds) => {
   const pad = (n) => String(n).padStart(2, '0');
   return pad(Math.floor(ticks / 6000)) + ':' + pad(Math.floor(ticks / 100) % 60) + '.' + pad(ticks % 100);
 };
+const redoStack = [];
+function snapshot() { return { clips: clips.map(clip => ({ ...clip })), selected, cursor }; }
 function save() {
-  history.push({ clips: clips.map((clip) => ({ ...clip })), selected, cursor });
+  redoStack.length = 0;
+  history.push(snapshot());
   if (history.length > 30) history.shift();
 }
 function restore() {
   if (!history.length) return;
   stop();
+  redoStack.push(snapshot());
   ({ clips, selected, cursor } = history.pop());
   render();
 }
@@ -156,6 +160,8 @@ function render() {
   $('video').disabled = !active?.asset.video;
   $('remove').disabled = $('silence').disabled = !active;
   $('undo').disabled = !history.length;
+  $('redo').disabled = !redoStack.length;
+  $('trimLeft').disabled = $('trimRight').disabled = !active;
   $('export').disabled = $('play').disabled = $('split').disabled = !clips.length;
   $('total').textContent = '/ ' + time(total);
   renderCursor();
@@ -590,5 +596,32 @@ for (const tab of document.querySelectorAll('[data-kind]')) {
     render();
   };
 }
+$('panelToggle').onclick = () => {
+  $('panels').hidden = !$('panels').hidden;
+  document.body.classList.toggle('panels-open', !$('panels').hidden);
+  $('panelToggle').setAttribute('aria-expanded', String(!$('panels').hidden));
+};
+$('redo').onclick = () => {
+  if (!redoStack.length) return;
+  stop();
+  history.push(snapshot());
+  ({clips, selected, cursor} = redoStack.pop());
+  render();
+};
+for (const key of ['trimLeft', 'trimRight']) {
+  $(key).onclick = () => {
+    const clip = getSelected();
+    if (!clip) return;
+    stop();
+    if (cursor <= clip.at + minimumClip || cursor >= end(clip) - minimumClip) return report('Coloca el cabezal dentro del clip seleccionado.');
+    save();
+    const point = clip.from + cursor - clip.at;
+    if (key === 'trimLeft') { clip.from = point; clip.at = cursor; }
+    else clip.to = point;
+    render();
+  };
+}
+$('zoomOut').onclick = () => changeScale(scale / 1.6);
+$('zoomIn').onclick = () => changeScale(scale * 1.6);
 new ResizeObserver(render).observe(viewport);
 render();
