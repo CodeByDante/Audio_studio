@@ -130,6 +130,12 @@ function render() {
     paintWave(wave, clip);
   }
   const active = getSelected();
+  $('mixName').textContent = active?.asset.name || 'Selecciona un clip en la pista.';
+  for (const key of ['gainDb', 'fadeIn', 'fadeOut']) {
+    $(key).disabled = !active;
+    $(key).value = active?.[key] || 0;
+    $(key + 'Value').textContent = $(key).value + (key === 'gainDb' ? ' dB' : ' s');
+  }
   $('selection').textContent = active ? active.asset.name + ' · ' + time(active.to - active.from) : 'Ningún clip seleccionado';
   $('video').disabled = !active?.asset.video;
   $('remove').disabled = $('silence').disabled = !active;
@@ -168,10 +174,14 @@ function schedule(context, sourceClips, from, start, smooth = true) {
     source.buffer = clip.asset.buffer;
     if (smooth) {
       const gain = context.createGain();
-      const fade = Math.min(0.004, length / 2);
-      gain.gain.setValueAtTime(0, when);
-      gain.gain.linearRampToValueAtTime(1, when + fade);
-      gain.gain.setValueAtTime(1, when + length - fade);
+      const full = clip.to - clip.from;
+      const level = 10 ** ((clip.gainDb || 0) / 20);
+      const attack = Math.min(Math.max(0.004, clip.fadeIn || 0), full / 2);
+      const release = Math.min(Math.max(0.004, clip.fadeOut || 0), full / 2);
+      const initial = level * Math.min(1, skip / attack, length / release);
+      gain.gain.setValueAtTime(initial, when);
+      if (skip < attack) gain.gain.linearRampToValueAtTime(level, when + attack - skip);
+      if (length > release) gain.gain.setValueAtTime(level, when + length - release);
       gain.gain.linearRampToValueAtTime(0, when + length);
       source.connect(gain).connect(context.destination);
     } else source.connect(context.destination);
@@ -514,5 +524,18 @@ window.addEventListener('keydown', (event) => {
   else if (event.code === 'Space' && !event.target.closest('button,a')) { event.preventDefault(); play(); }
   else if (event.key === 'Delete') remove();
 });
+for (const key of ['gainDb', 'fadeIn', 'fadeOut']) {
+  $(key).oninput = () => {
+    $(key + 'Value').textContent = $(key).value + (key === 'gainDb' ? ' dB' : ' s');
+  };
+  $(key).onchange = () => {
+    const clip = getSelected();
+    if (!clip) return;
+    stop();
+    save();
+    clip[key] = $(key).valueAsNumber;
+    render();
+  };
+}
 new ResizeObserver(render).observe(viewport);
 render();

@@ -36,3 +36,20 @@ details{position:relative}summary{cursor:pointer;color:#cbd7e4}
 #library{position:absolute;bottom:24px;left:0;min-width:200px;background:#20242b;z-index:4;max-height:180px;overflow:auto}
 #status{margin-left:4px}button:focus-visible,summary:focus-visible{outline:2px solid #85e9dd;outline-offset:2px}
 @media(max-width:620px){main{padding:0 4px 8px}.topbar{margin:0 -4px 6px;padding:5px}.topbar .tools{display:contents}.tools .group{gap:4px}.tools button{font-size:12px}.workspace{grid-template-columns:60px minmax(0,1fr)}.track{padding:0 5px}.transport{padding:8px}.console-title{padding:6px 9px}}
+
+:root{--lime:#28d5d5;--line:#393939;--panel:#252525}
+body{background:#181818}header{background:#191919}main{padding-top:10px}
+.panels{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,1fr);gap:10px;margin-bottom:12px}
+.media-panel,.mix-panel{background:#252525;border:1px solid #393939;border-radius:10px;padding:16px;min-width:0}
+.panel-title,.mix-panel label{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panels h2{font-size:17px;color:#f0f2f3}.panels #drop{display:flex;align-items:center;justify-content:center;flex-direction:row;gap:12px;margin:14px 0;background:#1e2425;border-color:#437173;padding:15px}
+.panels #drop span{display:block}.panels #import{background:#174344;color:#a9f8f6;margin:0}
+.panels #library{position:static;display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));min-width:0;max-height:140px;background:transparent}
+.panels #library:empty{display:none}.entry{border-left:3px solid #338db4}
+.mix-panel label{font-size:12px;color:#ccd3d3}.mix-panel output{font-family:ui-monospace,monospace;color:#75e4de}
+.mix-panel input{width:100%;height:12px;margin:6px 0 9px;accent-color:#28d5d5}
+#mixName{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:6px 0 13px}
+.topbar{margin:0;padding:7px;background:#303030;border:1px solid #393939;border-radius:7px 7px 0 0}.topbar .tools{width:100%}
+.editor{border-radius:0 0 7px 7px}.console-title,.transport{background:#262626}
+#timeline{height:clamp(190px,34vh,375px);background-color:#222}.workspace{background:#222}
+@media(max-width:650px){.panels{grid-template-columns:1fr;gap:6px}.media-panel,.mix-panel{padding:10px}.panels #drop{margin:7px 0}.mix-panel{display:grid;grid-template-columns:1fr 1fr;column-gap:12px}.mix-panel h2,#mixName{grid-column:1/-1}.mix-panel input{align-self:center}}
